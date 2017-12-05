@@ -51,6 +51,12 @@ int verbose = 0;            /* if true, print additional output */
 int nextjid = 1;            /* next job ID to allocate */
 char sbuf[MAXLINE];         /* for composing sprintf messages */
 
+struct cmdline_struct{
+  int builtN;
+  int argc;
+  char *argv[MAXARGS];
+};
+
 struct job_t {              /* The job struct */
     pid_t pid;              /* job PID */
     int jid;                /* job ID [1, 2, ...] */
@@ -65,21 +71,23 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 
 /* Here are the functions that you will implement */
 void eval(char *cmdline);
-int is_builtin_cmd(char **argv);
+int is_builtin_cmd(struct cmdline_struct cmd);
 void do_exit(void);
 void do_show_jobs(void);
 void do_ignore_singleton(void);
 void do_killall(char **argv);
 void do_bgfg(char **argv);
 void waitfg(pid_t pid);
-
 void sigchld_handler(int sig);
 void sigtstp_handler(int sig);
 void sigint_handler(int sig);
 void sigalrm_handler(int sig);
 
+/*Helpers*/
+
+
 /* Here are helper routines that we've provided for you */
-int parseline(const char *cmdline, char **argv);
+int parseline(const char *cmdline, struct cmdline_struct *cmd);
 void sigquit_handler(int sig);
 
 void clearjob(struct job_t *job);
@@ -180,9 +188,22 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline)
 {
-    if(cmdline=("exit")){
-      printf("Exiting the shell...");
-      do_exit();
+    int bg;
+    int pid;
+    struct cmdline_struct cmd;
+    bg = parseline(cmdline,&cmd);
+    printf("Finished Parsing \n");
+    //printf('Command: %s\n',&cmd.argv[0]);
+    if (cmd.argv[0]==NULL){
+      printf("empty line \n");
+      return; /*empty line*/
+    }
+    if (bg==-1) return;     /*parse error*/
+    if(!(is_builtin_cmd(cmd))){
+      printf("Not built in\n");
+    }
+    else{
+      printf("Built-in command executing...\n");
     }
     return;
 }
@@ -194,7 +215,7 @@ void eval(char *cmdline)
  * argument.  Return true if the user has requested a BG job, false if
  * the user has requested a FG job.
  */
-int parseline(const char *cmdline, char **argv)
+int parseline(const char *cmdline, struct cmdline_struct *cmd)
 {
     static char array[MAXLINE]; /* holds local copy of command line */
     char *buf = array;          /* ptr that traverses command line */
@@ -218,7 +239,7 @@ int parseline(const char *cmdline, char **argv)
     }
 
     while (delim) {
-	argv[argc++] = buf;
+	cmd->argv[argc++] = buf;
 	*delim = '\0';
 	buf = delim + 1;
 	while (*buf && (*buf == ' ')) /* ignore spaces */
@@ -232,14 +253,28 @@ int parseline(const char *cmdline, char **argv)
 	    delim = strchr(buf, ' ');
 	}
     }
-    argv[argc] = NULL;
+    cmd->argv[argc] = NULL;
 
     if (argc == 0)  /* ignore blank line */
 	return 1;
 
     /* should the job run in the background? */
-    if ((bg = (*argv[argc-1] == '&')) != 0) {
-	argv[--argc] = NULL;
+    if ((bg = (*cmd->argv[argc-1] == '&')) != 0) {
+	cmd->argv[--argc] = NULL;
+    }
+    /*If built-in, set as integer constant*/
+    if(!strcmp(cmd->argv[0],"exit")){
+      cmd->builtN=BLTN_EXIT;
+    }else if(!strcmp(cmd->argv[0],"jobs")){
+      cmd->builtN=BLTN_JOBS;
+    }else if(!strcmp(cmd->argv[0],"bg")){
+      cmd->builtN=BLTN_BGFG;
+    }else if(!strcmp(cmd->argv[0],"fg")){
+      cmd->builtN=BLTN_BGFG;
+    }else if(!strcmp(cmd->argv[0],"killall")){
+      cmd->builtN=BLTN_KILLALL;
+    }else{
+      cmd->builtN=BLTN_UNK;
     }
     return bg;
 }
@@ -250,9 +285,29 @@ int parseline(const char *cmdline, char **argv)
  * return the type of built in command, otherwise indicate that it
  * isn't a built in command
  */
-int is_builtin_cmd(char **argv)
+int is_builtin_cmd(struct cmdline_struct cmd)
 {
-    return BLTN_UNK;     /* not a builtin command */
+  /*#define BLTN_UNK 0
+    #define BLTN_IGNR 1
+    #define BLTN_BGFG 2
+    #define BLTN_JOBS 3
+    #define BLTN_EXIT 4
+    #define BLTN_KILLALL 5
+    */
+    switch(cmd.builtN){
+      case BLTN_IGNR:
+        return 1;
+      case BLTN_BGFG:
+        return 1;
+      case BLTN_JOBS:
+        return 1;
+      case BLTN_EXIT:
+        exit(0);
+        return 1;
+      case BLTN_KILLALL:
+        return 1;
+     default: return BLTN_UNK;     /* not a builtin command */
+   }
 }
 
 /*
