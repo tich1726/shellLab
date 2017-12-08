@@ -199,6 +199,18 @@ void eval(char *cmdline)
     }
     if (bg==-1) return;     /*parse error*/
     if(!(is_builtin_cmd(cmd))){
+      if ((pid = fork()) == 0){
+        //setting the child's process group
+        setpgid(0, 0);
+
+
+        //child stuff
+      }
+
+
+
+
+
       printf("Not built in\n");
     }
     else{
@@ -305,7 +317,7 @@ int is_builtin_cmd(struct cmdline_struct cmd)
         do_show_jobs();
         return 1;
       case BLTN_EXIT:
-        exit(0);
+        do_exit();
         return 1;
       case BLTN_KILLALL:
         do_killall(argv);
@@ -328,6 +340,7 @@ void do_exit(void)
  */
 void do_show_jobs(void)
 {
+  showjobs(jobs);
   return;
 }
 
