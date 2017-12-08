@@ -194,37 +194,50 @@ void eval(char *cmdline)
     int bg;
     int pid;
     struct cmdline_struct cmd;
-    bg = parseline(cmdline,&cmd);
+    bg = parseline(cmdline, &cmd);
+    struct job_t *job;
+    sigset_t mask, prev_mask;
+
     //printf("Finished Parsing \n");
     if (cmd.argv[0]==NULL){
       printf("empty line \n");
       return; /*empty line*/
     }
+
     if (bg==-1) return;     /*parse error*/
+
     if(!(is_builtin_cmd(cmd))){
-      //temporarily block child
-      //sigprocmask(SIG_BLOCK,&mask,0);
+      sigemptyset(&mask);
+      sigaddset(&mask, SIGCHLD);
+
+      sigprocmask(SIG_BLOCK, &mask , &prev_mask); //to prevent race condition
+
       if ((pid = fork()) == 0){
         //setting the child's process group
         setpgid(0, 0);
-      if(pid<0){
-        printf('error forking');
+        execvp(cmd.argv[0], cmd.argv);
+
+        exit(0);
       }
 
+      //wait for child if it is not bg
+      if (bg == 0){ //in the foreground
+        addjob(jobs, pid, FG, cmdline);
+        sigprocmask(SIG_SETMASK, &prev_mask , NULL);
 
-      }else{
-        ///Parent
-        if(bg){
-          addjob(jobs, pid, BG, cmdline); //add job as background
-        }else{
-          addjob(jobs, pid, FG, cmdline); //add job as background
-
-        }
+        waitfg(pid);
       }
+      else{ //in the background
+        addjob(jobs, pid, BG, cmdline);
+        sigprocmask(SIG_SETMASK, &prev_mask , NULL);
 
+        int jid = get_jid_from_pid(pid);
 
+        job = getjobid(jobs, jid);
 
-      printf("Not built in\n");
+        //[1] (52311) ./myspin 20 &
+        printf("[%d] (%d) %s", job->jid, job->pid, cmdline);
+      }
     }
     else{
       printf("Built-in command executing...\n");
@@ -367,6 +380,16 @@ void do_ignore_singleton(void)
 
 void do_killall(char **argv)
 {
+  //pid_t pid;
+  //struct job_t *job;
+  unsigned int delay = strtol(argv[1], (char**)NULL, 10);
+  alarm(delay);
+  while(1){}
+  // while(1){
+  //   job = getjobid(jobs, 1);
+  //   pid = job->pid;
+  //   kill(pid, SIGINT);
+  // }
   return;
 }
 
@@ -383,6 +406,12 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    int jid = get_jid_from_pid(pid);
+    struct job_t *job = getjobid(jobs, jid); //get matching job
+
+    while (job->state == FG){ //wait until the state is no longer FG
+      sleep(1);
+    }
     return;
 }
 
@@ -399,6 +428,14 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig)
 {
+    pid_t pid;
+    int status;
+    struct job_t *job;
+
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0){
+      //job = getjobid(jobs, pid);
+      removejob(jobs, pid);
+    }
     return;
 }
 
@@ -409,6 +446,17 @@ void sigchld_handler(int sig)
  */
 void sigalrm_handler(int sig)
 {
+    printf("TEST\n");
+    int jid = maxjid(jobs);
+    struct job_t *job;
+    pid_t pid;
+    while (jid != 0){ //there is still a job
+      job = getjobid(jobs, jid);
+      //printf("%d\n", jid);
+      pid = job->pid;
+      kill(-pid, SIGINT);
+      jid = maxjid(jobs);
+    }
     return;
 }
 
@@ -419,6 +467,12 @@ void sigalrm_handler(int sig)
  */
 void sigint_handler(int sig)
 {
+    printf("idk");
+    pid_t pid = fgpid(jobs);
+
+    if (pid != 0){
+      kill(-pid, SIGINT);
+    }
     return;
 }
 
