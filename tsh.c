@@ -202,15 +202,25 @@ void eval(char *cmdline)
     }
     if (bg==-1) return;     /*parse error*/
     if(!(is_builtin_cmd(cmd))){
+      //temporarily block child
+      //sigprocmask(SIG_BLOCK,&mask,0);
       if ((pid = fork()) == 0){
         //setting the child's process group
         setpgid(0, 0);
-
-
-        //child stuff
+      if(pid<0){
+        printf('error forking');
       }
 
 
+      }else{
+        ///Parent
+        if(bg){
+          addjob(jobs, pid, BG, cmdline); //add job as background
+        }else{
+          addjob(jobs, pid, FG, cmdline); //add job as background
+
+        }
+      }
 
 
 
