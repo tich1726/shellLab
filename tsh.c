@@ -192,8 +192,7 @@ void eval(char *cmdline)
     int pid;
     struct cmdline_struct cmd;
     bg = parseline(cmdline,&cmd);
-    printf("Finished Parsing \n");
-    //printf('Command: %s\n',&cmd.argv[0]);
+    //printf("Finished Parsing \n");
     if (cmd.argv[0]==NULL){
       printf("empty line \n");
       return; /*empty line*/
@@ -294,17 +293,22 @@ int is_builtin_cmd(struct cmdline_struct cmd)
     #define BLTN_EXIT 4
     #define BLTN_KILLALL 5
     */
+    char **argv = cmd.argv;
     switch(cmd.builtN){
       case BLTN_IGNR:
+        do_ignore_singleton();
         return 1;
       case BLTN_BGFG:
+        do_bgfg(argv);
         return 1;
       case BLTN_JOBS:
+        do_show_jobs();
         return 1;
       case BLTN_EXIT:
         exit(0);
         return 1;
       case BLTN_KILLALL:
+        do_killall(argv);
         return 1;
      default: return BLTN_UNK;     /* not a builtin command */
    }
