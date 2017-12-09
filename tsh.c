@@ -439,7 +439,7 @@ void sigchld_handler(int sig)
 
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0){
       //job = getjobid(jobs, pid);
-      //printf("%s\n", "wats");
+      // printf("%s\n", "WUTTT");
       removejob(jobs, pid);
     }
     return;
@@ -478,12 +478,14 @@ void sigalrm_handler(int sig)
  */
 void sigint_handler(int sig)
 {
-    //pid_t pid = fgpid(jobs);
-    //printf("%d\n", pid);
-    printf("idkfdsjafdkl\n");
-    //if (pid != 0){
-    //  kill(-pid, SIGINT);
-    //}
+    pid_t pid = fgpid(jobs);
+    int jid;
+    if (pid != 0){
+      jid = get_jid_from_pid(pid);
+      printf("Job [%d] (%d) terminated by signal 2\n", jid, pid);
+      kill(-pid, SIGINT);
+
+    }
     return;
 }
 
@@ -494,6 +496,17 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig)
 {
+    pid_t pid = fgpid(jobs);
+    struct job_t *job;
+    int jid;
+    if (pid != 0){
+      jid = get_jid_from_pid(pid);
+      job = getjobid(jobs, jid);
+
+      printf("Job [%d] (%d) stopped by signal 20\n", jid, pid);
+      kill(-pid, SIGTSTP);
+      job->state = ST;
+    }
     return;
 }
 
