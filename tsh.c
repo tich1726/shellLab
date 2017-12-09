@@ -215,8 +215,11 @@ void eval(char *cmdline)
       if ((pid = fork()) == 0){
         //setting the child's process group
         setpgid(0, 0);
-
-        execvp(cmd.argv[0], cmd.argv);
+        sigprocmask(SIG_UNBLOCK, &mask , NULL);
+        
+        if (execvp(cmd.argv[0], cmd.argv) == -1){
+          printf("%s: Command not found\n", cmd.argv[0]);
+        }
 
         exit(0);
       }
@@ -407,7 +410,7 @@ void do_bgfg(char **argv)
     //foreground. The <job> argument can be either 
     //a PID or a JID.
     if (argv[1] == NULL){
-      printf("%s: command requires an argument\n", argv[0]);
+      printf("%s command requires PID or Jjobid argument\n", argv[0]);
       return;
     }
 
@@ -421,7 +424,7 @@ void do_bgfg(char **argv)
     }
     else
     {
-      printf("%s: command requires an argument that is a PID or JID\n", argv[0]);
+      printf("%s argument must be a PID or Jjobid\n", argv[0]);
       return;
     }
 
@@ -431,12 +434,17 @@ void do_bgfg(char **argv)
 
     if (isPID){
       pid = atoi(argv[1]);
+      job = getprocessid(jobs, pid);
+      if (job == NULL){
+        printf("(%s): No such process\n", argv[1]);
+        return;
+      }
     }
     else {
       jid = atoi(&argv[1][1]);
       job = getjobid(jobs, jid);
       if (job == NULL){ //no matching job found
-        printf("%s\n", "No matching JID found");
+        printf("%s: No such job\n", argv[1]);
         return;
       }
 
@@ -446,12 +454,12 @@ void do_bgfg(char **argv)
 
     if (strcmp(argv[0], "bg") == 0){
       kill(-pid, SIGCONT);
-      job = getprocessid(jobs, pid);
+      printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
       job->state = BG;
+
     }
     else { //fg
       kill(-pid, SIGCONT);
-      job = getprocessid(jobs, pid);
       job->state = FG;
       waitfg(pid);
     }
