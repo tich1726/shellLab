@@ -388,13 +388,7 @@ void do_killall(char **argv)
   //struct job_t *job;
   unsigned int delay = atoi(argv[1]);
   alarm(delay);
-  
-  //while(1){}
-  // while(1){
-  //   job = getjobid(jobs, 1);
-  //   pid = job->pid;
-  //   kill(pid, SIGINT);
-  // }
+
   return;
 }
 
@@ -403,6 +397,65 @@ void do_killall(char **argv)
  */
 void do_bgfg(char **argv)
 {
+    //The bg <job> command restarts <job> by sending 
+    //it a SIGCONT signal, and then runs it in the 
+    //background. The <job> argument can be either 
+    //a PID or a JID.
+
+    //The fg <job> command restarts <job> by sending 
+    //it a SIGCONT signal, and then runs it in the 
+    //foreground. The <job> argument can be either 
+    //a PID or a JID.
+    if (argv[1] == NULL){
+      printf("%s: command requires an argument\n", argv[0]);
+      return;
+    }
+
+    int isPID = 1; //true == PID; false == JID
+    //checking if the argument is a digit (PID) or starts with a 'J' character (JID)
+    if (isdigit(argv[1][0]) != 0){
+      isPID = 1;
+    }
+    else if (argv[1][0] == 'J'){
+      isPID = 0;
+    }
+    else
+    {
+      printf("%s: command requires an argument that is a PID or JID\n", argv[0]);
+      return;
+    }
+
+    pid_t pid;
+    struct job_t *job;
+    int jid;
+
+    if (isPID){
+      pid = atoi(argv[1]);
+    }
+    else {
+      jid = atoi(&argv[1][1]);
+      job = getjobid(jobs, jid);
+      if (job == NULL){ //no matching job found
+        printf("%s\n", "No matching JID found");
+        return;
+      }
+
+      //found a matching job
+      pid = job->pid;
+    }
+
+    if (strcmp(argv[0], "bg") == 0){
+      kill(-pid, SIGCONT);
+      job = getprocessid(jobs, pid);
+      job->state = BG;
+    }
+    else { //fg
+      kill(-pid, SIGCONT);
+      job = getprocessid(jobs, pid);
+      job->state = FG;
+      waitfg(pid);
+    }
+    //printf("%s\n", argv[1]);
     return;
 }
 
@@ -499,6 +552,7 @@ void sigtstp_handler(int sig)
     pid_t pid = fgpid(jobs);
     struct job_t *job;
     int jid;
+
     if (pid != 0){
       jid = get_jid_from_pid(pid);
       job = getjobid(jobs, jid);
