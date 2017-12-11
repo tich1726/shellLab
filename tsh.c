@@ -500,11 +500,12 @@ void sigchld_handler(int sig)
     int status;
     struct job_t *job;
 
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0){
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0){
       //check child process for status
 
       if(WIFSIGNALED(status)){
         sigint_handler(-2);
+        printf("Job [%d] (%d) terminated by signal 2\n", get_jid_from_pid(pid), pid);
         removejob(jobs, pid);
       }
 
@@ -538,7 +539,7 @@ void sigalrm_handler(int sig)
         return;
       }
       pid = job->pid;
-      printf("Job [%d] (%d) terminated by signal 2\n", i, pid);
+      //printf("Job [%d] (%d) terminated by signal 2\n", i, pid);
       kill(pid, SIGINT);
     }
 
@@ -556,7 +557,7 @@ void sigint_handler(int sig)
     int jid;
     if (pid != 0){
       jid = get_jid_from_pid(pid);
-      printf("Job [%d] (%d) terminated by signal 2\n", jid, pid);
+      //printf("Job [%d] (%d) terminated by signal 2\n", jid, pid);
       kill(-pid, SIGINT);
 
     }
