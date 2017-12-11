@@ -206,7 +206,6 @@ void eval(char *cmdline)
 
     if (bg==-1) return;     /*parse error*/
 
-    //if not built-in
     if(!(is_builtin_cmd(cmd))){
       sigemptyset(&mask);
       sigaddset(&mask, SIGCHLD);
@@ -217,7 +216,7 @@ void eval(char *cmdline)
         //setting the child's process group
         setpgid(0, 0);
         sigprocmask(SIG_UNBLOCK, &mask , NULL);
-
+        
         if (execvp(cmd.argv[0], cmd.argv) == -1){
           printf("%s: Command not found\n", cmd.argv[0]);
         }
@@ -401,14 +400,14 @@ void do_killall(char **argv)
  */
 void do_bgfg(char **argv)
 {
-    //The bg <job> command restarts <job> by sending
-    //it a SIGCONT signal, and then runs it in the
-    //background. The <job> argument can be either
+    //The bg <job> command restarts <job> by sending 
+    //it a SIGCONT signal, and then runs it in the 
+    //background. The <job> argument can be either 
     //a PID or a JID.
 
-    //The fg <job> command restarts <job> by sending
-    //it a SIGCONT signal, and then runs it in the
-    //foreground. The <job> argument can be either
+    //The fg <job> command restarts <job> by sending 
+    //it a SIGCONT signal, and then runs it in the 
+    //foreground. The <job> argument can be either 
     //a PID or a JID.
     if (argv[1] == NULL){
       printf("%s command requires PID or Jjobid argument\n", argv[0]);
@@ -479,7 +478,6 @@ void waitfg(pid_t pid)
     while (job->state == FG){ //wait until the state is no longer FG
       sleep(1);
     }
-
     return;
 }
 
@@ -498,24 +496,8 @@ void sigchld_handler(int sig)
 {
     pid_t pid;
     int status;
-    struct job_t *job;
-
-    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0){
-      //check child process for status
-
-      if(WIFSIGNALED(status)){
-        sigint_handler(-2);
-        printf("Job [%d] (%d) terminated by signal 2\n", get_jid_from_pid(pid), pid);
-        removejob(jobs, pid);
-      }
-
-      else if(WIFSTOPPED(status)){
-        sigtstp_handler(20);
-      }
-
-      else if(WIFEXITED(status)){
-        removejob(jobs, pid);
-      }
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0){
+      removejob(jobs, pid);
     }
     return;
 }
@@ -539,7 +521,7 @@ void sigalrm_handler(int sig)
         return;
       }
       pid = job->pid;
-      //printf("Job [%d] (%d) terminated by signal 2\n", i, pid);
+      printf("Job [%d] (%d) terminated by signal 2\n", i, pid);
       kill(pid, SIGINT);
     }
 
@@ -557,7 +539,7 @@ void sigint_handler(int sig)
     int jid;
     if (pid != 0){
       jid = get_jid_from_pid(pid);
-      //printf("Job [%d] (%d) terminated by signal 2\n", jid, pid);
+      printf("Job [%d] (%d) terminated by signal 2\n", jid, pid);
       kill(-pid, SIGINT);
 
     }
